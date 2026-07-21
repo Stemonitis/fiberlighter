@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fiberlighter"
+version = "0.1.0"
+dependencies = [
+  "numpy",
+  "scipy",
+  "pandas",
+  "scikit-learn",
+  "PyWavelets"
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Stemonitis", email = "atokhtamysh@gmail.com"},
+]
+maintainers = [
+  {name = "Stemonitis", email = "atokhtamysh@gmail.com"},
+]
+description = "Fiber photometry processing toolkit"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICEN[CS]E.*"]
+keywords = ["fiber photometry", "calcium indicators", fiber-photometry",
+    "neuroscience",
+    "fluorescence",
+    "signal-processing",
+    "fiber-optics",
+    "neural-imaging",
+    "photometry-analysis",
+    "calcium-imaging",
+    "GCaMP",
+    "motion-correction",
+    "denoising",
+    "scientific-computing"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[project.optional-dependencies]
+gui = ["PyQt5"]
+cli = [
+  "rich",
+  "click",
+]
+
+[project.urls]
+Homepage = "https://example.com"
+Documentation = "https://readthedocs.org"
+Repository = "https://github.com/me/spam.git"
+"Bug Tracker" = "https://github.com/me/spam/issues"
+Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+
+[project.scripts]
+spam-cli = "spam:main_cli"
+
+[project.gui-scripts]
+spam-gui = "spam:main_gui"
+
+[project.entry-points."spam.magical"]
+tomatoes = "spam:main_tomatoes"
