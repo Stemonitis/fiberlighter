@@ -23,18 +23,22 @@ description = "Fiber photometry processing toolkit"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICEN[CS]E.*"]
-keywords = ["fiber photometry", "calcium indicators", fiber-photometry",
-    "neuroscience",
-    "fluorescence",
-    "signal-processing",
-    "fiber-optics",
-    "neural-imaging",
-    "photometry-analysis",
-    "calcium-imaging",
-    "GCaMP",
-    "motion-correction",
-    "denoising",
-    "scientific-computing"]
+keywords = [
+  "fiber photometry",
+  "calcium indicators",
+  "fiber-photometry",
+  "neuroscience",
+  "fluorescence",
+  "signal-processing",
+  "fiber-optics",
+  "neural-imaging",
+  "photometry-analysis",
+  "calcium-imaging",
+  "GCaMP",
+  "motion-correction",
+  "denoising",
+  "scientific-computing"
+]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python"
