@@ -10,7 +10,7 @@ def interpolate(data):
     return data_copy
         
 
-def lowpass_filter(signal, cutoff, fs=10, order=4):
+def lowpass_filter(signal, cutoff=10, fs=3, order=4):
     """Butterworth lowpass filter.
 
     cutoff : frequency in Hz above which signal is attenuated.
