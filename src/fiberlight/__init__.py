@@ -1,7 +1,7 @@
 from .read_input import read_csv_file
-from .interpolation_filtering import read_data_1_animal
+from .interpolation_filtering import interpolate
+from .interpolation_filtering import lowpass_filter
 
 
 
-
-__all__ = ["read_csv_file", "read_data_all_animals"]
+__all__ = ["read_csv_file", "interpolate", "lowpass_filter"]

@@ -1,17 +1,23 @@
-def interpolate(data_gcamp, data_iso, time_gcamp, time_iso):
-        interp_func = interp1d(time_iso, data_iso, kind='linear', fill_value='extrapolate')
-        iso_aligned = interp_func(time_gcamp)
-        if (len(data_gcamp.shape)==2):
-            # Multiple animals
-            return [interpolate(d) for d in data]
-        else:
-            # Single animal
-            return interpolate(data)
+import numpy as np
+import copy
+from scipy.signal import butter, filtfilt
 
 
-def lowpass_filter(signal, cutoff=10, fs=3, order=4):
-    """Lowpass filter to remove fast noise"""
-    nyquist = fs / 2
-    normal_cutoff = cutoff / nyquist
-    b, a = butter(order, normal_cutoff, btype='low')
+def interpolate(data):
+    data_copy = copy.deepcopy(data)
+    for animal_key, animal_data in data.items():
+        data_copy[animal_key]["iso_interp"] = np.interp(animal_data["gcamp"]["time"], animal_data["iso"]["time"], animal_data["iso"]["data"])
+    return data_copy
+        
+
+def lowpass_filter(signal, cutoff, fs=10, order=4):
+    """Butterworth lowpass filter.
+
+    cutoff : frequency in Hz above which signal is attenuated.
+             Must be below fs / 2.
+    fs     : sampling rate in Hz.
+    """
+    if not 0 < cutoff < fs / 2:
+        raise ValueError(f"cutoff={cutoff} Hz must be between 0 and {fs / 2} Hz for fs={fs}")
+    b, a = butter(order, cutoff, btype="low", fs=fs)
     return filtfilt(b, a, signal)
