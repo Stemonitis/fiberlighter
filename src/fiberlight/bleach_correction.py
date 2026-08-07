@@ -1,3 +1,11 @@
+import numpy as np
+from scipy.signal import detrend, butter, filtfilt
+from scipy.optimize import curve_fit
+
+
+
+
+
 def highpass_filter(signal, cutoff=0.01, fs=5, order=4):
     """Remove slow drift below cutoff frequency"""
     nyquist = fs / 2
@@ -75,18 +83,3 @@ def fit_double_exp_bleaching(signal, time):
     except Exception as e:
         print(f"Fit failed: {e}")
         return None
-ignal_detrend = detrend(signal)
-iso_detrend = detrend(iso_interp)
-
-plt.figure(figsize=(15, 10))
-plt.plot(time_signal, signal, alpha=0.5, label='Raw data')
-plt.plot(time_signal, iso_interp, alpha=0.5, label='Raw data')
-plt.plot(time_signal, signal_detrend, label='Detrended GCaMP')
-plt.plot(time_signal, iso_detrend, label='Detrended 405')
-
-plt.xlabel('Time (s)')
-plt.ylabel('Fluorescence')
-plt.legend()
-plt.title('Detrending')
-plt.grid(True, alpha=0.3)
-plt.show()
