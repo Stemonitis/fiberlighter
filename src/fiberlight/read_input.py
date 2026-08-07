@@ -9,7 +9,7 @@ def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column
 
     TODO
     ----
-    - event column extraction
+    - add event column extraction
     - test 
     - write tests in the tests folder
     - derive columns from header instead of hardcoding
@@ -34,7 +34,6 @@ def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column
         # if event_column is not None:
         #     event_bool = (data.iloc[:, event_column] == event_value).to_numpy()
         #     result["events"] = data.iloc[event_bool, time_column].to_numpy(float)
-
         gcamp_bool =  data.iloc[:, gcamp_column[animal]].notna().to_numpy() # boolean array
         time_gcamp = data.iloc[gcamp_bool, time_column].to_numpy(float)
         data_gcamp = data.iloc[gcamp_bool, gcamp_column[animal]].to_numpy(float)
