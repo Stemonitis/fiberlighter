@@ -39,3 +39,26 @@ def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column
         data_gcamp = data.iloc[gcamp_bool, gcamp_column[animal]].to_numpy(float)
         result[f"animal{animal}"]["gcamp"] = {"time":time_gcamp, "data":data_gcamp}
     return result
+
+
+
+
+
+    from dataclasses import dataclass, field
+import numpy as np
+
+@dataclass
+class Recording:
+    """Central data object for fiber photometry data."""
+    time: np.ndarray          # timestamps
+    gcamp: np.ndarray         # 470nm signal
+    iso: np.ndarray           # 405nm signal (isosbestic)
+    fs: float                 # sampling frequency
+    events: np.ndarray = None # event times
+    history: list = field(default_factory=list)  # processing steps applied
+    
+    def __post_init__(self):
+        """Validate on creation."""
+        assert len(self.time) == len(self.gcamp) == len(self.iso), \
+            "time, gcamp, iso must have same length"
+        assert self.fs > 0, "fs must be positive"
