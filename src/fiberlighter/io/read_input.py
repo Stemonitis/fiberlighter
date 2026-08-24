@@ -1,8 +1,10 @@
+from fiberlighter.recording import Recording
+
 import numpy as np
 import pandas as pd
 
 #check for interleaved data format and common data format
-def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column = (1,3,5,7,9,11), iso_column = (2,4,6,8,10,12), event_column = (13, 14, 15, 16, 17, 18),  iso = True, animals_total = 6):
+def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column = (1,3,5,7,9), iso_column = (2,4,6,8,10), event_column = (13, 14, 15, 16, 17, 18),  iso = True, interpolate = True, animals_total = 5)-> list[Recording]:
     """Read a fiber photometry CSV.
 
     Returns {"animal{i}": {"iso": {"time", "data"}, "gcamp": {...}}}.
@@ -21,44 +23,26 @@ def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column
     - dataclass instead of dict for better type safety and IDE support???
     - test with other data formats and possibly with nwb data and reader
     """
-    result  = {}
+    recordings  = []
     data = pd.read_csv(path_to_file, header=list(header_rows))
     print("The header is ", data.columns)
+        
     for animal in range(animals_total):
-        result[f"animal{animal}"] = {}
+        recording  = Recording 
         if iso:
             iso_bool = data.iloc[:, iso_column[animal]].notna().to_numpy() # boolean array
             time_iso = data.iloc[iso_bool, time_column].to_numpy(float)
             data_iso = data.iloc[iso_bool, iso_column[animal]].to_numpy(float)
-            result[f"animal{animal}"]["iso"] = {"time":time_iso, "data":data_iso}
-        # if event_column is not None:
-        #     event_bool = (data.iloc[:, event_column] == event_value).to_numpy()
-        #     result["events"] = data.iloc[event_bool, time_column].to_numpy(float)
         gcamp_bool =  data.iloc[:, gcamp_column[animal]].notna().to_numpy() # boolean array
         time_gcamp = data.iloc[gcamp_bool, time_column].to_numpy(float)
         data_gcamp = data.iloc[gcamp_bool, gcamp_column[animal]].to_numpy(float)
-        result[f"animal{animal}"]["gcamp"] = {"time":time_gcamp, "data":data_gcamp}
-    return result
-
-
-
-
-
-    from dataclasses import dataclass, field
-import numpy as np
-
-@dataclass
-class Recording:
-    """Central data object for fiber photometry data."""
-    time: np.ndarray          # timestamps
-    gcamp: np.ndarray         # 470nm signal
-    iso: np.ndarray           # 405nm signal (isosbestic)
-    fs: float                 # sampling frequency
-    events: np.ndarray = None # event times
-    history: list = field(default_factory=list)  # processing steps applied
-    
-    def __post_init__(self):
-        """Validate on creation."""
-        assert len(self.time) == len(self.gcamp) == len(self.iso), \
-            "time, gcamp, iso must have same length"
-        assert self.fs > 0, "fs must be positive"
+        if interpolate:
+            data_iso = np.interp(time_gcamp, time_iso, data_iso)
+        # #THISIS WORK IN PROGRESS DO NOT USE ON OTHER DATA
+        # if event_column is not None:
+        #     event_bool = (data.iloc[:, event_column] == event_value).notna().to_numpy()
+        #     print(event_bool)
+        #     # events = data.iloc[event_bool, time_column].to_numpy(float)
+        
+        recordings.append(Recording(iso=data_iso, gcamp=data_gcamp, time=time_gcamp))
+    return recordings

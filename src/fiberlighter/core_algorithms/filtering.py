@@ -2,13 +2,6 @@ import numpy as np
 import copy
 from scipy.signal import butter, filtfilt
 
-
-def interpolate(data):
-    for animal_key, animal_data in data.items():
-        data[animal_key]["iso_interp"] = np.interp(animal_data["gcamp"]["time"], animal_data["iso"]["time"], animal_data["iso"]["data"])
-    return data
-        
-
 def lowpass_filter(data, cutoff=1.0, fs=3, order=4):
     """Butterworth lowpass filter applied to every channel. Modifies data in place.
 
