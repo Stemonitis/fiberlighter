@@ -1,4 +1,11 @@
 import numpy as np
+from .registry import PROCESSORS
+
+from .preprocessing.bleach_correction import BleachCorrection
+from .preprocessing.filtering import Filtering
+from .preprocessing.motion_correction import MotionCorrection
+
+
 
 class Recording:
     def __init__(
@@ -9,6 +16,7 @@ class Recording:
         events: dict[str, np.ndarray] | None = None,
         provenance=None,
         fs = None
+       
     ):
         self.iso = iso
         self.gcamp = gcamp
@@ -20,6 +28,9 @@ class Recording:
 
         self.iso_work = iso.copy()
         self.gcamp_work = gcamp.copy()
+
+        for name, processor_class in PROCESSORS.items():
+            setattr(self, name, processor_class(self))
     
     def reset(self):
         self.iso_work = self.iso.copy()
