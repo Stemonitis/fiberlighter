@@ -58,6 +58,7 @@ class BleachCorrection:
         b, a = butter(order, cutoff, btype="high", fs=self.recording.fs)
         self.recording.iso_work = filtfilt(b, a, self.recording.iso_work)
         self.recording.gcamp_work = filtfilt(b, a, self.recording.gcamp_work)
+        return self.recording
 
 
     def double_exponential(self):
@@ -78,6 +79,7 @@ class BleachCorrection:
         t = self.recording.time - self.recording.time[0]
         self.recording.iso_work = _run(self.recording.iso_work)
         self.recording.gcamp_work = _run(self.recording.gcamp_work)
+        return self.recording
 
     def single_exponential(self):
         """Fit and subtract one decay. Fallback when the double fails to converge."""
@@ -96,6 +98,7 @@ class BleachCorrection:
         t = self.recording.time - self.recording.time[0]
         self.recording.iso_work = _run(self.recording.iso_work)
         self.recording.gcamp_work = _run(self.recording.gcamp_work)
+        return self.recording
 
 
     def polynomial(self, order=3):
@@ -106,12 +109,14 @@ class BleachCorrection:
 
         self.recording.iso_work = sig1 - np.polyval(np.polyfit(t, sig1, order), t)
         self.recording.gcamp_work = sig2 - np.polyval(np.polyfit(t, sig2, order), t)
+        return self.recording
 
 
     def linear(self, kind="linear"):
         """Subtract a least-squares line. kind="constant" subtracts the mean only."""
         self.recording.iso_work = _detrend(self.recording.iso_work, type=kind)
         self.recording.gcamp_work = _detrend(self.recording.gcamp_work, type=kind)
+        return self.recording
 
 
     def airpls(self, lam=1e6, max_iter=15):
@@ -137,3 +142,4 @@ class BleachCorrection:
             return z
         self.recording.iso_work = self.recording.iso_work - _baseline(self.recording.iso_work)
         self.recording.gcamp_work = self.recording.gcamp_work - _baseline(self.recording.gcamp_work)
+        return self.recording

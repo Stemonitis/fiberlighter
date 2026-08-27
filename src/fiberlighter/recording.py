@@ -2,9 +2,9 @@ import numpy as np
 from .registry import PROCESSORS
 
 from .preprocessing.bleach_correction import BleachCorrection
-from .preprocessing.filtering import Filtering
 from .preprocessing.motion_correction import MotionCorrection
-
+from .preprocessing.noise_correction import NoiseCorrection
+from .visualization.plots import Visualization
 
 
 class Recording:

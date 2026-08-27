@@ -25,13 +25,15 @@ TODO / known issues
 
 import numpy as np
 from sklearn.linear_model import HuberRegressor
+from ..registry import register_processing
+
 
 @register_processing("motion_correction")
 class MotionCorrection:
     def __init__(self, recording):
         self.recording = recording
 
-    def _dff(sig, fitted, mode):
+    def _dff(self, sig, fitted, mode):
         if mode == "ratio":
             return (sig - fitted) / fitted
         elif mode == "mean":
@@ -43,52 +45,49 @@ class MotionCorrection:
 
     def polynomial_normalization(self, deg=1, normalise="ratio"):
         """Least-squares fit of iso to gcamp. deg=1 is the standard linear fit."""
-            iso = self.recording.iso_work
-            sig = self.recording.gcamp_work
-            coeffs = np.polyfit(iso, sig, deg)
-            fitted = np.polyval(coeffs, iso)   # evaluate on ISO, not GCaMP
-            animal_data["fitted"] = {"time": animal_data["gcamp"]["time"], "data": fitted}
-            animal_data["dff"] = {"time": animal_data["gcamp"]["time"],
-                                "data": _dff(sig, fitted, normalise)}
+        iso = self.recording.iso_work
+        sig = self.recording.gcamp_work
+        coeffs = np.polyfit(iso, sig, deg)
+        fitted = np.polyval(coeffs, iso)   # evaluate on ISO, not GCaMP
+
+        self.recording.iso_work = fitted
+        self.recording.gcamp_work = self._dff(sig, fitted, normalise)
+        return self.recording
 
 
-    def robust_fit(data, normalise="ratio", **kwargs):
+    def robust_fit(self, normalise="ratio", **kwargs):
         """Huber regression — downweights outliers instead of letting them pull the fit.
 
         Better than polynomial_fit when the recording has motion spikes, since
         least squares is dominated by large residuals.
         """
-        for animal_data in data.values():
-            iso = animal_data["iso"]["data"]
-            sig = animal_data["gcamp"]["data"]
-            model = HuberRegressor(**kwargs).fit(iso.reshape(-1, 1), sig)
-            fitted = model.predict(iso.reshape(-1, 1))
-            animal_data["fitted"] = {"time": animal_data["gcamp"]["time"], "data": fitted}
-            animal_data["dff"] = {"time": animal_data["gcamp"]["time"],
-                                "data": _dff(sig, fitted, normalise)}
-        return data
+        iso = self.recording.iso_work
+        sig = self.recording.gcamp_work
+        model = HuberRegressor(**kwargs).fit(iso.reshape(-1, 1), sig)
+        fitted = model.predict(iso.reshape(-1, 1))
+        self.recording.iso_work = fitted
+        self.recording.gcamp_work = self._dff(sig, fitted, normalise)
+        return self.recording
 
-
-    def sliding_window_fit(data, window_sec=30, deg=1, normalise="ratio"):
+    def sliding_window_fit(self, window_sec=30, deg=1, normalise="ratio"):
         """Refit iso to gcamp in a moving window, so the relationship can drift.
 
         Handles recordings where the iso-gcamp coupling changes over time, at the
         cost of one polyfit per sample. Window must be long relative to your
         transients or it will fit and remove them.
         """
-        for animal_data in data.values():
-            iso = animal_data["iso"]["data"]
-            sig = animal_data["gcamp"]["data"]
-            time = animal_data["gcamp"]["time"]
-            fs = 1.0 / np.median(np.diff(time))
-            half = max(int(window_sec * fs) // 2, deg + 1)
+        iso = self.recording.iso_work
+        sig = self.recording.gcamp_work
+        time = self.recording.time
+        fs = self.recording.fs
+        half = max(int(window_sec * fs) // 2, deg + 1)
 
-            n = len(sig)
-            fitted = np.zeros(n, dtype=float)
-            for i in range(n):
-                start, end = max(0, i - half), min(n, i + half)
-                fitted[i] = np.polyval(np.polyfit(iso[start:end], sig[start:end], deg), iso[i])
+        n = len(sig)
+        fitted = np.zeros(n, dtype=float)
+        for i in range(n):
+            start, end = max(0, i - half), min(n, i + half)
+            fitted[i] = np.polyval(np.polyfit(iso[start:end], sig[start:end], deg), iso[i])
 
-            animal_data["fitted"] = {"time": time, "data": fitted}
-            animal_data["dff"] = {"time": time, "data": _dff(sig, fitted, normalise)}
-        return data
+        self.recording.iso_work = fitted
+        self.recording.gcamp_work = self._dff(sig, fitted, normalise)
+        return self.recording
