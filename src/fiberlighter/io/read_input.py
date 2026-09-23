@@ -26,7 +26,16 @@ def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column
     recordings  = []
     data = pd.read_csv(path_to_file, header=list(header_rows))
     print("The header is ", data.columns)
-        
+    events = {}
+    if event_column is not None:
+        print(event_column)
+        for event in event_column:
+            event_bool = data.iloc[:, event]==1
+            event_times = data.loc[event_bool,data.columns[time_column]].to_numpy(float)
+            event_name = data.columns[event]
+            if len(event_times)==animals_total:
+                events[event_name] = event_times
+    print(events)
     for animal in range(animals_total):
         recording  = Recording 
         if iso:
@@ -38,11 +47,11 @@ def read_csv_file(path_to_file, header_rows = (0,1), time_column=0, gcamp_column
         data_gcamp = data.iloc[gcamp_bool, gcamp_column[animal]].to_numpy(float)
         if interpolate:
             data_iso = np.interp(time_gcamp, time_iso, data_iso)
-        # #THISIS WORK IN PROGRESS DO NOT USE ON OTHER DATA
-        # if event_column is not None:
-        #     event_bool = (data.iloc[:, event_column] == event_value).notna().to_numpy()
-        #     print(event_bool)
-        #     # events = data.iloc[event_bool, time_column].to_numpy(float)
-        
-        recordings.append(Recording(iso=data_iso, gcamp=data_gcamp, time=time_gcamp))
+        if event_column is not None: 
+            event_animal = {
+                event_name: event_times[animal]
+                for event_name, event_times in events.items()
+        }
+        print(event_animal)
+        recordings.append(Recording(iso=data_iso, gcamp=data_gcamp, time=time_gcamp, events = event_animal))
     return recordings

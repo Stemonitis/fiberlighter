@@ -88,7 +88,7 @@ class NoiseCorrection:
         self.recording.iso_work = medfilt(self.recording.iso_work, kernel_size=kernel)
         return self.recording
 
-    def bandpass_filter(self, low=0.01, high=1.0, fs=None, order=4):
+    def bandpass_filter(self, low=0.01, high=1.0, order=4):
         """Butterworth bandpass — highpass and lowpass in one pass.
 
         Combines drift removal and fast-noise removal. Both edges must sit below

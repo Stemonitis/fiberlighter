@@ -1,8 +1,10 @@
 from fiberlighter.io.read_input import read_csv_file
+import numpy as np
 import matplotlib.pyplot as plt
+print(plt.get_backend())
 
 
-agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv")
+agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column = (1,3,5,7,9,11,13,15,17), iso_column = (2,4,6,8,10,12,14,16,18), event_column = (19,), animals_total = 9)
 
 # print(len(agrpsal))   # Recording object
 # fig, ax = plt.subplots(
@@ -20,7 +22,7 @@ agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv")
 # plt.tight_layout()
 # plt.show()
 
-agrpsal[4].visualization.basic_plot()
+agrpsal[3].noise_correction.wavelet_denoise().visualization.basic_plot()
 plt.show()
 
 # agrpex4 = read_csv_file("src/data/20260107-AgRP-EX4_0000.csv")
@@ -60,7 +62,7 @@ plt.show()
 # # plt.tight_layout()
 # # plt.show()
 
-# pagdcz[5].visualization.basic_plot()
+# pagdcz[4].visualization.basic_plot()
 # plt.show()
 
 # pagsal = read_csv_file("src/data/20260220-PAG-SAL.csv")
@@ -79,18 +81,18 @@ plt.show()
 
 # # plt.tight_layout()
 # # plt.show()
-# pagsal[5].visualization.basic_plot()
+# pagsal[4].visualization.basic_plot()
 # plt.show()
 
 
 # data1 = read_csv_file("src/data/DATA1-TH.csv")
 
-# fig, ax = plt.subplots(
-#     len(data1),
-#     1,
-#     figsize=(12, 3 * len(data1)),
-#     sharex=True
-# )
+# # fig, ax = plt.subplots(
+# #     len(data1),
+# #     1,
+# #     figsize=(12, 3 * len(data1)),
+# #     sharex=True
+# # )
 # # if len(data1) == 1:
 # #     ax = [ax]
 # # for record, ax in zip(data1, ax):
@@ -100,7 +102,7 @@ plt.show()
 # # plt.tight_layout()
 # # plt.show()
 
-# data1[4].visualization.basic_plot()
+# data1[0].visualization.basic_plot()
 # plt.show()
 
 
@@ -120,5 +122,58 @@ plt.show()
 
 # # plt.tight_layout()
 # # plt.show()
-# data2[5].visualization.basic_plot()
+# data2[4].visualization.basic_plot()
+# plt.show()
+
+
+
+
+
+
+
+
+
+
+
+# agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column = (1,3,5,7,9), iso_column = (2,4,6,8,10))
+# agrpsal[4].visualization.basic_plot()
+# plt.show()
+# agrpsal[4].bleach_correction.double_exponential()
+# agrpsal[4].visualization.basic_plot()
+# plt.show()
+# print(np.corrcoef(agrpsal[4].iso_work, agrpsal[4].gcamp_work)[0, 1])
+# agrpsal[4].motion_correction.robust_fit()
+# agrpsal[4].visualization.basic_plot()
+# plt.show()
+
+# print(np.median(agrpsal[4].iso), np.median(agrpsal[4].gcamp))
+# agrpsal[4].noise_correction.bandpass_filter(0.1, 1)
+# print(np.corrcoef(agrpsal[4].iso_work, agrpsal[4].gcamp_work)[0, 1])
+# agrpsal[4].visualization.basic_plot()
+# plt.show()
+
+
+
+#Despike 
+# agrpsal[4].noise_correction.hampel_filter().bleach_correction.double_exponential().motion_correction.robust_fit()
+
+
+# agrpsal[3].visualization.basic_plot()
+# plt.show()
+
+
+
+
+
+
+
+# data1 = read_csv_file("src/data/DATA1-TH.csv")
+# data1[0].visualization.basic_plot()
+# plt.show()
+# data1[0].bleach_correction.double_exponential()
+# data1[0].visualization.basic_plot()
+# plt.show()
+# print(np.corrcoef(data1[0].iso_work, data1[0].gcamp_work)[0, 1])
+# data1[0].motion_correction.robust_fit()
+# data1[0].visualization.basic_plot()
 # plt.show()

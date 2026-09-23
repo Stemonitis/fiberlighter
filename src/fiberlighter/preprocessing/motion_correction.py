@@ -66,7 +66,7 @@ class MotionCorrection:
         model = HuberRegressor(**kwargs).fit(iso.reshape(-1, 1), sig)
         fitted = model.predict(iso.reshape(-1, 1))
         self.recording.iso_work = fitted
-        self.recording.gcamp_work = self._dff(sig, fitted, normalise)
+        self.recording.gcamp_work = sig - fitted
         return self.recording
 
     def sliding_window_fit(self, window_sec=30, deg=1, normalise="ratio"):

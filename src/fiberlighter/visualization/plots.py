@@ -27,6 +27,12 @@ class Visualization:
 
         ax.plot(self.recording.time, self.recording.gcamp_work)
         ax.plot(self.recording.time, self.recording.iso_work)
+        for event_name, event_time in self.recording.events.items():
+            ax.axvline(
+                event_time,
+                linestyle="--",
+                label=event_name
+            )
         ax.set_xlabel("Time (s)")
         ax.set_ylabel("dF/F")
         return self.recording

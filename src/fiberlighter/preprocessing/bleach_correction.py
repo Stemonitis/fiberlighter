@@ -62,9 +62,14 @@ class BleachCorrection:
 
 
     def double_exponential(self):
-        """Fit and subtract a fast plus a slow decay. Expects raw fluorescence."""
+        """Fit and remove a fast plus a slow decay, returning ΔF/F.
+
+        Expects raw fluorescence. The fitted curve is used as F0, so the
+        baseline is time-varying rather than a single scalar.
+        """
         def _f(t, A1, tau1, A2, tau2, baseline):
             return A1 * np.exp(-t / tau1) + A2 * np.exp(-t / tau2) + baseline
+
         def _run(data):
             sig = data
             p0 = [sig[0] * 0.3, 30, sig[0] * 0.7, 300, sig[-1]]
@@ -73,8 +78,8 @@ class BleachCorrection:
                 params, _ = curve_fit(_f, t, sig, p0=p0, bounds=bounds, maxfev=10000)
             except (RuntimeError, ValueError) as e:
                 raise RuntimeError(f"double_exponential failed: {e}") from e
-            data = sig - _f(t, *params)
-            return data
+            curve = _f(t, *params)
+            return (sig - curve) / curve
 
         t = self.recording.time - self.recording.time[0]
         self.recording.iso_work = _run(self.recording.iso_work)
