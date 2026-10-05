@@ -50,8 +50,9 @@ class BleachCorrection:
 
 
     def highpass_filter(self, cutoff=0.01, order=4):
-        """Remove drift below cutoff frequency."""
-        if not 0 < cutoff < self.recording.fs / 2:
+        """Remove low-frequency components below the cutoff.
+        Default cuttoff is 0.01 Hz which meane the all changes slower than 100 seconds will be removed. Order  = 4 is the order of the butterworth filter. """
+        if not 0 < cutoff < self.recording.fs / 2: #check the nyqquist frequency (you can only filter up to half the sampling frequency)
             raise ValueError(
                 f"cutoff={cutoff} Hz must be between 0 and {self.recording.fs / 2} Hz for fs={self.recording.fs}"
             )
@@ -124,7 +125,7 @@ class BleachCorrection:
         return self.recording
 
 
-    def airpls(self, lam=1e6, max_iter=15):
+    def airpls(self, lam=1e9, max_iter=15):
         """Subtract an adaptively reweighted penalised least squares baseline.
 
         Reweights iteratively so points above the baseline lose influence, letting

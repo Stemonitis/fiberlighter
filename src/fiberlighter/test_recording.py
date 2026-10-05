@@ -22,7 +22,7 @@ agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column 
 # plt.tight_layout()
 # plt.show()
 
-agrpsal[3].noise_correction.wavelet_denoise().visualization.basic_plot()
+agrpsal[4].bleach_correction.highpass_filter().visualization.basic_plot()
 plt.show()
 
 # agrpex4 = read_csv_file("src/data/20260107-AgRP-EX4_0000.csv")

@@ -20,7 +20,9 @@ TODO / known issues
 - medfilt kernel must be odd; even values raise.
 - At 3 Hz most of these are marginal for the same reason lowpass was.
 - No provenance, mutates in place — same as the bleaching module.
+-- use adaptive filtering techniques
 -- rewrte the wavelet denoise to use both gcampt or iso
+-- first do a fourier transform and figure out the profile of the signal
 """
 
 import numpy as np
@@ -82,7 +84,7 @@ class NoiseCorrection:
         )
         return self.recording
 
-    def median_filter(self, kernel=5):
+    def median_filter(self, kernel=55):
         """Median filter. Good for isolated spike artifacts, kernel must be odd."""
         self.recording.gcamp_work = medfilt(self.recording.gcamp_work, kernel_size=kernel)
         self.recording.iso_work = medfilt(self.recording.iso_work, kernel_size=kernel)
@@ -105,7 +107,7 @@ class NoiseCorrection:
         return self.recording
 
 
-    def gaussian_smooth(self, sigma=2.0):
+    def gaussian_smooth(self, sigma=10.0):
         """Gaussian smoothing. sigma is in samples, not seconds.
 
         Softer than savgol with no polynomial edge artifacts, but rounds off
@@ -115,7 +117,7 @@ class NoiseCorrection:
         self.recording.gcamp_work = gaussian_filter1d(self.recording.gcamp_work, sigma=sigma)
         return self.recording
 
-    def hampel_filter(self, window=7, n_sigma=3.0):
+    def hampel_filter(self, window=7, n_sigma=5):
         """Replace outliers with the local median, leaving everything else untouched.
 
         Unlike median_filter, which rewrites every sample, this only replaces
@@ -134,3 +136,4 @@ class NoiseCorrection:
         self.recording.iso_work = _run(self.recording.iso_work)
         self.recording.gcamp_work = _run(self.recording.gcamp_work)
         return self.recording
+    
