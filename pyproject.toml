@@ -45,6 +45,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+oscillations = ["bycycle>=1.2,<2", "emd>=0.8,<0.9", "matplotlib"]
 gui = ["PyQt5"]
 cli = [
   "rich",

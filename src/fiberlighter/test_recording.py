@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 print(plt.get_backend())
 
 
-agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column = (1,3,5,7,9,11,13,15,17), iso_column = (2,4,6,8,10,12,14,16,18), event_column = (19,), animals_total = 9)
+# Channel assignment for this recording: EXC 1 = iso, EXC 2 = GCaMP.
+agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column = (2,4,6,8,10,12,14,16,18), iso_column = (1,3,5,7,9,11,13,15,17), event_column = (19,), animals_total = 9)
 
 # print(len(agrpsal))   # Recording object
 # fig, ax = plt.subplots(
@@ -21,9 +22,24 @@ agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column 
 
 # plt.tight_layout()
 # plt.show()
+# agrpsal[4].diagnostics.frequency_analysis()
+# agrpsal[4].diagnostics.frequency_analysis_whole(heatmap=True)
+# agrpsal[4].diagnostics.frequency_analysis_timeframed()
 
-agrpsal[4].bleach_correction.highpass_filter().visualization.basic_plot()
-plt.show()
+# agrpsal[4].diagnostics.coherence_whole(window_seconds=120)
+# agrpsal[4].diagnostics.coherence_timeframed(window_seconds=120, time_window_seconds=600)
+# agrpsal[4].diagnostics.compare_oscillations(channel="gcamp")
+# agrpsal[4].diagnostics.bosc_analysis(channel="gcamp")
+# agrpsal[4].diagnostics.byb(channel="gcamp")
+
+# agrpsal[4].normalization.deltaF_over_Fo().visualization.basic_plot()
+# agrpsal[4].visualization.basic_plot()
+# agrpsal[4].bleach_correction.highpass_filter(cutoff=0.0002).visualization.basic_plot()
+# agrpsal[4].bleach_correction.highpass_filter().visualization.basic_plot()
+# agrpsal[4].bleach_correction.double_exponential(plot_fit=True).visualization.basic_plot()
+recording = agrpsal[4].bleach_correction.double_exponential(plot_fit=True).visualization.plot_raw_with_baseline()
+# recording.visualization.plot_raw_with_baseline()
+
 
 # agrpex4 = read_csv_file("src/data/20260107-AgRP-EX4_0000.csv")
 
