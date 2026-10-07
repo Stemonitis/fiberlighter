@@ -43,15 +43,14 @@ class MotionCorrection:
         raise ValueError(f"unknown normalise: {mode}")
 
 
-    def polynomial_normalization(self, deg=1, normalise="ratio"):
+    def polynomial_normalization(self, deg=2, normalise="ratio"):
         """Least-squares fit of iso to gcamp. deg=1 is the standard linear fit."""
         iso = self.recording.iso_work
         sig = self.recording.gcamp_work
         coeffs = np.polyfit(iso, sig, deg)
         fitted = np.polyval(coeffs, iso)   # evaluate on ISO, not GCaMP
 
-        self.recording.iso_work = fitted
-        self.recording.gcamp_work = self._dff(sig, fitted, normalise)
+        self.recording.iso_fitted = fitted
         return self.recording
 
 
@@ -65,8 +64,8 @@ class MotionCorrection:
         sig = self.recording.gcamp_work
         model = HuberRegressor(**kwargs).fit(iso.reshape(-1, 1), sig)
         fitted = model.predict(iso.reshape(-1, 1))
-        self.recording.iso_work = fitted
-        self.recording.gcamp_work = sig - fitted
+        self.recording.iso_fitted = fitted
+
         return self.recording
 
     def sliding_window_fit(self, window_sec=30, deg=1, normalise="ratio"):
@@ -88,6 +87,5 @@ class MotionCorrection:
             start, end = max(0, i - half), min(n, i + half)
             fitted[i] = np.polyval(np.polyfit(iso[start:end], sig[start:end], deg), iso[i])
 
-        self.recording.iso_work = fitted
-        self.recording.gcamp_work = self._dff(sig, fitted, normalise)
+        self.recording.iso_fitted = fitted
         return self.recording

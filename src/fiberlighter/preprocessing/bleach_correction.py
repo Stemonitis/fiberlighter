@@ -85,28 +85,80 @@ class BleachCorrection:
         return self.recording
 
 
-    def double_exponential(self, apply_to=both, plot_fit = False):
-        """Fit and remove a fast plus a slow decay, returning ΔF/F.
+    def double_exponential(self, apply_to="both", plot_fit = False, tau_slow_max=10000):
+        """Fit and subtract a fast plus a slow decay.
 
-        Expects raw fluorescence. The fitted curve is used as F0, so the
-        baseline is time-varying rather than a single scalar.
+        Expects raw fluorescence. tau_slow_max is the upper bound on the slow
+        time constant in seconds; adjust it for the recording, not universally.
         """
+        # TODO: Estimate initial parameters from the recording's shape:
+        # - Use median time bins only for initialization, not the final fit.
+        # - Fit a single exponential plus offset to a few candidate tail windows.
+        # - Extrapolate each slow fit and fit the early residual for the fast decay.
+        # - Use these guesses in joint double-exponential fits to the original data;
+        #   retain the current guess as a fallback and compare residual errors.
+        # - Keep guesses within bounds. A short tail may not constrain the offset
+        #   or slow time constant; sustained biology can also influence the fit.
         def _f(t, A1, tau1, A2, tau2, baseline):
             return A1 * np.exp(-t / tau1) + A2 * np.exp(-t / tau2) + baseline
 
         def _run(data):
-            sig = data
-            p0 = [sig[0] * 0.3, 30, sig[0] * 0.7, 300, sig[-1]]
-            bounds = ([0, 1, 0, 60, 0], [np.inf, 120, np.inf, 3600, np.inf])
+            sig = np.asarray(data, dtype=np.float64)
+            fit_time = np.asarray(t, dtype=np.float64)
+            if sig.ndim != 1 or fit_time.ndim != 1 or sig.shape != fit_time.shape:
+                raise ValueError("double_exponential needs matching one-dimensional signal and time arrays")
+            if sig.size < 6:
+                raise ValueError("double_exponential needs at least six samples")
+            if not np.isfinite(sig).all() or not np.isfinite(fit_time).all():
+                raise ValueError("double_exponential needs finite signal and time values")
+            if np.any(np.diff(fit_time) <= 0):
+                raise ValueError("double_exponential needs strictly increasing timestamps")
+
+            n_edge = max(1, len(sig) // 100)
+            start = float(np.median(sig[:n_edge]))
+            end = float(np.median(sig[-n_edge:]))
+
+            offset_guess = max(end, 0.0)
+            amplitude_guess = max(
+                start - offset_guess,
+                0.01 * np.max(np.abs(sig)),
+            )
+
+            if not np.isfinite(tau_slow_max) or tau_slow_max <= 60:
+                raise ValueError("tau_slow_max must be finite and greater than 60 seconds")
+            slow_guess = np.clip((fit_time[-1] - fit_time[0]) / 2, 60, tau_slow_max)
+            p0 = [
+                0.3 * amplitude_guess, 600,
+                0.7 * amplitude_guess, slow_guess,
+                offset_guess,
+            ]
+            # Positive decay amplitudes and offset; time constants are in seconds.
+            bounds = ([0, 1, 0, 60, 0], [np.inf, 3000, np.inf, tau_slow_max, np.inf])
             try:
-                params, _ = curve_fit(_f, t, sig, p0=p0, bounds=bounds, maxfev=10000)
+                params, _ = curve_fit(
+                    _f,
+                    fit_time,
+                    sig,
+                    p0=p0,
+                    bounds=bounds,
+                    method="trf",
+                    x_scale="jac",
+                    max_nfev=10000,
+                )
             except (RuntimeError, ValueError) as e:
                 raise RuntimeError(f"double_exponential failed: {e}") from e
-            curve = _f(t, *params)
+            curve = _f(fit_time, *params)
+            A1, tau1, A2, tau2, baseline = params
+            if tau1 > tau2:
+                A1, tau1, A2, tau2 = A2, tau2, A1, tau1
+            fast_component = A1 * np.exp(-fit_time / tau1)
+            slow_component = A2 * np.exp(-fit_time / tau2)
             if plot_fit:
                 plt.figure()
                 plt.plot(t, sig, label="raw")
                 plt.plot(t, curve, label="fit")
+                plt.plot(t, fast_component, label=f"fast component (tau={tau1:.1f} s)")
+                plt.plot(t, slow_component, label=f"slow component (tau={tau2:.1f} s)")
                 plt.legend()
                 plt.title("Double exponential fit")
                 plt.xlabel("Time (s)")
@@ -117,12 +169,19 @@ class BleachCorrection:
         t = self.recording.time - self.recording.time[0]
         self.baseline_iso = _run(self.recording.iso_work)
         self.baseline_gcamp = _run(self.recording.gcamp_work)
-        self.recording.iso_work = self.recording.iso_work - self.baseline_iso
-        self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
+        
+        
+        if apply_to == "iso":
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+        elif apply_to == "gcamp":
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
+        else:
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
         return self.recording
 
 
- def double_exponential(self, plot_fit=False, convert_to_deltaF_over_Fo=True,
+#  def double_exponential(self, plot_fit=False, convert_to_deltaF_over_Fo=True,
 #                            apply_to='both', tau_fast_bounds=(1, 120),
 #                            tau_slow_bounds=(60, 3600)):
 #         """Fit and remove two exponential decays plus a constant baseline.
@@ -178,50 +237,175 @@ class BleachCorrection:
 
 
 
-    def single_exponential(self):
-        """Fit and subtract one decay. Fallback when the double fails to converge."""
+    def single_exponential(self, apply_to="both", plot_fit=False, tau_max=3600):
+        """Fit one decay, save both baselines and subtract from selected channels.
+
+        Expects raw fluorescence. tau_max bounds the time constant in seconds.
+        """
         def _f(t, A, tau, baseline):
             return A * np.exp(-t / tau) + baseline
+
         def _run(data):
-            sig = data
-            p0 = [sig[0] - sig[-1], 100, sig[-1]]
-            bounds = ([0, 1, 0], [np.inf, 3600, np.inf])
+            sig = np.asarray(data, dtype=np.float64)
+            fit_time = np.asarray(t, dtype=np.float64)
+            if sig.ndim != 1 or fit_time.ndim != 1 or sig.shape != fit_time.shape:
+                raise ValueError("single_exponential needs matching one-dimensional signal and time arrays")
+            if sig.size < 4:
+                raise ValueError("single_exponential needs at least four samples")
+            if not np.isfinite(sig).all() or not np.isfinite(fit_time).all():
+                raise ValueError("single_exponential needs finite signal and time values")
+            if np.any(np.diff(fit_time) <= 0):
+                raise ValueError("single_exponential needs strictly increasing timestamps")
+
+            n_edge = max(1, len(sig) // 100)
+            start = float(np.median(sig[:n_edge]))
+            end = float(np.median(sig[-n_edge:]))
+            offset_guess = max(end, 0.0)
+            amplitude_guess = max(start - offset_guess, 0.01 * np.max(np.abs(sig)))
+
+            if not np.isfinite(tau_max) or tau_max <= 1:
+                raise ValueError("tau_max must be finite and greater than 1 second")
+            tau_guess = np.clip((fit_time[-1] - fit_time[0]) / 2, 1, tau_max)
+            p0 = [amplitude_guess, tau_guess, offset_guess]
+            bounds = ([0, 1, 0], [np.inf, tau_max, np.inf])
             try:
-                params, _ = curve_fit(_f, t, sig, p0=p0, bounds=bounds, maxfev=10000)
+                params, _ = curve_fit(
+                    _f,
+                    fit_time,
+                    sig,
+                    p0=p0,
+                    bounds=bounds,
+                    method="trf",
+                    x_scale="jac",
+                    max_nfev=10000,
+                )
             except (RuntimeError, ValueError) as e:
-                raise RuntimeError(f"single_exponential failed on: {e}") from e
-            data = sig - _f(t, *params)
-            return data
+                raise RuntimeError(f"single_exponential failed: {e}") from e
+            curve = _f(fit_time, *params)
+            A, tau, baseline = params
+            decay_component = A * np.exp(-fit_time / tau)
+            if plot_fit:
+                plt.figure()
+                plt.plot(t, sig, label="raw")
+                plt.plot(t, curve, label="fit")
+                plt.plot(t, decay_component, label=f"decay component (tau={tau:.1f} s)")
+                plt.legend()
+                plt.title("Single exponential fit")
+                plt.xlabel("Time (s)")
+                plt.ylabel("Fluorescence")
+                plt.show()
+            return curve
+
         t = self.recording.time - self.recording.time[0]
-        self.recording.iso_work = _run(self.recording.iso_work)
-        self.recording.gcamp_work = _run(self.recording.gcamp_work)
+        self.baseline_iso = _run(self.recording.iso_work)
+        self.baseline_gcamp = _run(self.recording.gcamp_work)
+
+        if apply_to == "iso":
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+        elif apply_to == "gcamp":
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
+        else:
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
         return self.recording
 
 
-    def polynomial(self, order=3):
-        """Fit and subtract a polynomial. Unconstrained — attenuates real transients."""
+    def polynomial(self, order=3, apply_to="both", plot_fit=False):
+        """Fit a polynomial, save both baselines and subtract from selected channels.
+
+        Unconstrained polynomials can follow and remove biological responses.
+        """
+        def _f(t, *params):
+            return np.polyval(params, t)
+
+        def _run(data):
+            sig = np.asarray(data, dtype=np.float64)
+            fit_time = np.asarray(t, dtype=np.float64)
+            if sig.ndim != 1 or fit_time.ndim != 1 or sig.shape != fit_time.shape:
+                raise ValueError("polynomial needs matching one-dimensional signal and time arrays")
+            if isinstance(order, bool) or not isinstance(order, (int, np.integer)) or not 0 <= order < sig.size:
+                raise ValueError("order must be a nonnegative integer below the number of samples")
+            if not np.isfinite(sig).all() or not np.isfinite(fit_time).all():
+                raise ValueError("polynomial needs finite signal and time values")
+            if np.any(np.diff(fit_time) <= 0):
+                raise ValueError("polynomial needs strictly increasing timestamps")
+
+            params = np.polyfit(fit_time, sig, order)
+            curve = _f(fit_time, *params)
+            if plot_fit:
+                plt.figure()
+                plt.plot(t, sig, label="raw")
+                plt.plot(t, curve, label="fit")
+                plt.legend()
+                plt.title(f"Polynomial fit (order={order})")
+                plt.xlabel("Time (s)")
+                plt.ylabel("Fluorescence")
+                plt.show()
+            return curve
+
         t = self.recording.time - self.recording.time[0]
-        sig1 = self.recording.iso_work
-        sig2 = self.recording.gcamp_work
+        self.baseline_iso = _run(self.recording.iso_work)
+        self.baseline_gcamp = _run(self.recording.gcamp_work)
 
-        self.recording.iso_work = sig1 - np.polyval(np.polyfit(t, sig1, order), t)
-        self.recording.gcamp_work = sig2 - np.polyval(np.polyfit(t, sig2, order), t)
+        if apply_to == "iso":
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+        elif apply_to == "gcamp":
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
+        else:
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
         return self.recording
 
 
-    def linear(self, kind="linear"):
-        """Subtract a least-squares line. kind="constant" subtracts the mean only."""
-        self.recording.iso_work = _detrend(self.recording.iso_work, type=kind)
-        self.recording.gcamp_work = _detrend(self.recording.gcamp_work, type=kind)
+    def linear(self, kind="linear", apply_to="both", plot_fit=False):
+        """Save and subtract a line fitted against sample index, or the mean.
+
+        kind="constant" uses the mean only. Both baselines are saved.
+        """
+        def _run(data):
+            sig = np.asarray(data, dtype=np.float64)
+            fit_time = np.asarray(t, dtype=np.float64)
+            if sig.ndim != 1 or fit_time.ndim != 1 or sig.shape != fit_time.shape:
+                raise ValueError("linear needs matching one-dimensional signal and time arrays")
+            if sig.size < 2:
+                raise ValueError("linear needs at least two samples")
+            if not np.isfinite(sig).all() or not np.isfinite(fit_time).all():
+                raise ValueError("linear needs finite signal and time values")
+            if np.any(np.diff(fit_time) <= 0):
+                raise ValueError("linear needs strictly increasing timestamps")
+
+            curve = sig - _detrend(sig, type=kind)
+            if plot_fit:
+                plt.figure()
+                plt.plot(t, sig, label="raw")
+                plt.plot(t, curve, label="fit")
+                plt.legend()
+                plt.title(f"Linear fit (kind={kind})")
+                plt.xlabel("Time (s)")
+                plt.ylabel("Fluorescence")
+                plt.show()
+            return curve
+
+        t = self.recording.time - self.recording.time[0]
+        self.baseline_iso = _run(self.recording.iso_work)
+        self.baseline_gcamp = _run(self.recording.gcamp_work)
+
+        if apply_to == "iso":
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+        elif apply_to == "gcamp":
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
+        else:
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
         return self.recording
 
 
-    def airpls(self, lam=1e9, max_iter=15):
+    def airpls(self, lam=1e9, max_iter=15, apply_to="both", plot_fit=False):
         """Subtract an adaptively reweighted penalised least squares baseline.
 
         Reweights iteratively so points above the baseline lose influence, letting
         the fit track drift without being pulled up by transients. lam sets
-        stiffness; 1e5-1e8 is the usual range.
+        stiffness and needs tuning for the data. Both baselines are saved.
         """
         def _baseline(y):
             n = len(y)
@@ -237,8 +421,45 @@ class BleachCorrection:
                 w = np.zeros(n)
                 w[d < 0] = np.exp(i * np.abs(neg) / np.abs(neg).sum())
             return z
-        self.recording.iso_work = self.recording.iso_work - _baseline(self.recording.iso_work)
-        self.recording.gcamp_work = self.recording.gcamp_work - _baseline(self.recording.gcamp_work)
+        def _run(data):
+            sig = np.asarray(data, dtype=np.float64)
+            fit_time = np.asarray(t, dtype=np.float64)
+            if sig.ndim != 1 or fit_time.ndim != 1 or sig.shape != fit_time.shape:
+                raise ValueError("airpls needs matching one-dimensional signal and time arrays")
+            if sig.size < 3:
+                raise ValueError("airpls needs at least three samples")
+            if not np.isfinite(sig).all() or not np.isfinite(fit_time).all():
+                raise ValueError("airpls needs finite signal and time values")
+            if np.any(np.diff(fit_time) <= 0):
+                raise ValueError("airpls needs strictly increasing timestamps")
+            if not np.isfinite(lam) or lam <= 0:
+                raise ValueError("lam must be finite and positive")
+            if isinstance(max_iter, bool) or not isinstance(max_iter, (int, np.integer)) or max_iter < 1:
+                raise ValueError("max_iter must be a positive integer")
+
+            curve = _baseline(sig)
+            if plot_fit:
+                plt.figure()
+                plt.plot(t, sig, label="raw")
+                plt.plot(t, curve, label="fit")
+                plt.legend()
+                plt.title("airPLS fit")
+                plt.xlabel("Time (s)")
+                plt.ylabel("Fluorescence")
+                plt.show()
+            return curve
+
+        t = self.recording.time - self.recording.time[0]
+        self.baseline_iso = _run(self.recording.iso_work)
+        self.baseline_gcamp = _run(self.recording.gcamp_work)
+
+        if apply_to == "iso":
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+        elif apply_to == "gcamp":
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
+        else:
+            self.recording.iso_work = self.recording.iso_work - self.baseline_iso
+            self.recording.gcamp_work = self.recording.gcamp_work - self.baseline_gcamp
         return self.recording
 
 
@@ -442,5 +663,3 @@ class BleachCorrection:
 #                 warnings.warn('airPLS reached max_iter; inspect the saved baseline', RuntimeWarning)
 #             return z, dict(parameters={'lam':lam,'max_iter':max_iter}, iterations=i, converged=converged)
 #         return self._fit('airpls', estimate, apply_to, plot_fit, convert_to_deltaF_over_Fo)
-
-

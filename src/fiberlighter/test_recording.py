@@ -37,9 +37,9 @@ agrpsal = read_csv_file("src/data/20260106-AgRP-SAL-3Hz_0000.csv", gcamp_column 
 # agrpsal[4].bleach_correction.highpass_filter(cutoff=0.0002).visualization.basic_plot()
 # agrpsal[4].bleach_correction.highpass_filter().visualization.basic_plot()
 # agrpsal[4].bleach_correction.double_exponential(plot_fit=True).visualization.basic_plot()
-recording = agrpsal[4].bleach_correction.double_exponential(plot_fit=True).visualization.plot_raw_with_baseline()
+recording = agrpsal[4].bleach_correction.double_exponential(plot_fit=False).motion_correction.sliding_window_fit().visualization.plot_with_fitted_iso()
 # recording.visualization.plot_raw_with_baseline()
-
+plt.show()
 
 # agrpex4 = read_csv_file("src/data/20260107-AgRP-EX4_0000.csv")
 

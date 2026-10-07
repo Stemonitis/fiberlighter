@@ -37,6 +37,7 @@ class Recording:
         self.bleach_fits = {}
         self.baseline_gcamp = baseline_gcamp
         self.baseline_iso = baseline_iso
+        self.iso_fitted = []
 
         self.fs = 1 / np.median(np.diff(time)) #if fs is none()
 
